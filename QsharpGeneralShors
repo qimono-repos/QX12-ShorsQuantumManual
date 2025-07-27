@@ -1,0 +1,60 @@
+namespace ShorAlgorithm {
+    open Microsoft.Quantum.Intrinsic;
+    open Microsoft.Quantum.Canon;
+    open Microsoft.Quantum.Arithmetic;
+    open Microsoft.Quantum.Convert;
+    open Microsoft.Quantum.Math;
+    open Microsoft.Quantum.Measurement;
+    open Microsoft.Quantum.Arrays;
+
+    operation ModularExponentiation(a : Int, N : Int, power : Int, qubits : Qubit[]) : Unit is Adj + Ctl {
+        // Applies U|x> = |a^power * x mod N>
+        // For general N, use Quantum modular multiplication (see Microsoft.Quantum.Arithmetic)
+        // Here, we assume qubits represent |x>
+        // This is a stub. For actual implementation, use the library's modular multiplication.
+        // Example:
+        // ModularMultiplyByConstant(a^power, N, qubits);
+        // For illustration, you must use the Arithmetic library functions for real use!
+        Message("Call ModularMultiplyByConstant from Microsoft.Quantum.Arithmetic.");
+    }
+
+    operation QFT(n : Int, qubits : Qubit[]) : Unit is Adj + Ctl {
+        for i in 0..n-1 {
+            H(qubits[i]);
+            for j in i+1..n-1 {
+                let theta = 2.0 * PI() / (PowD(2.0, IntAsDouble(j - i + 1)));
+                Controlled R1([qubits[j]], (theta, qubits[i]));
+            }
+        }
+        // Optionally, swap qubits for proper output order
+        for i in 0..(n / 2 - 1) {
+            Swap(qubits[i], qubits[n - i - 1]);
+        }
+    }
+
+    operation PhaseEstimation(a : Int, N : Int, power : Int, countingRegister : Qubit[], targetRegister : Qubit[]) : Unit {
+        // Apply Hadamards to counting register
+        ApplyToEach(H, countingRegister);
+
+        // Prepare target register to |1>
+        X(targetRegister[0]);
+
+        // Controlled modular exponentiation
+        for i in 0..Length(countingRegister)-1 {
+            let exp = PowI(2, i);
+            Controlled ModularExponentiation(a, N, exp, targetRegister)([countingRegister[i]]);
+        }
+
+        // Inverse QFT
+        Adjoint QFT(Length(countingRegister), countingRegister);
+    }
+
+    @EntryPoint()
+    operation RunShorQuantumPart(a : Int, N : Int, nCounting : Int) : Result[] {
+        use countingRegister = Qubit[nCounting];
+        use targetRegister = Qubit[Log2I(N)];
+        PhaseEstimation(a, N, 1, countingRegister, targetRegister);
+        // Measure countingRegister
+        return ForEach(MResetZ, countingRegister);
+    }
+}
